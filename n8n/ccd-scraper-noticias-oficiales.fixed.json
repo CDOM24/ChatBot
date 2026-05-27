@@ -1,0 +1,114 @@
+{
+  "name": "CCD - Scraper noticias oficiales",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "id": "c1000001-0001-4000-8000-000000000001",
+      "name": "Cron - Diario 06:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.CCD_NOTICIAS_URL || 'https://www.unab.edu.co/' }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "c1000001-0002-4000-8000-000000000002",
+      "name": "HTTP - Pagina oficial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ajustar selectores según HTML real de UNAB/CCD\nconst html = $json.data || $json.body || '';\nconst noticias = [];\n\n// Placeholder: reemplazar con parser real (cheerio en Code o nodo HTML)\nnoticias.push({\n  titulo: 'Titulo ejemplo',\n  fecha_publicacion: new Date().toISOString().slice(0, 10),\n  enlace: 'https://www.unab.edu.co/ejemplo',\n  resumen: 'Resumen ejemplo',\n  hash_contenido: 'ejemplo-hash'\n});\n\nreturn noticias.map(n => ({ json: n }));"
+      },
+      "id": "c1000001-0003-4000-8000-000000000003",
+      "name": "Code - Extraer noticias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO noticias_ccd (titulo, fecha_publicacion, enlace, resumen, hash_contenido, activo, disponible_chatbot)\nVALUES ($1, $2, $3, $4, $5, TRUE, TRUE)\nON CONFLICT (hash_contenido) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.titulo }},={{ $json.fecha_publicacion }},={{ $json.enlace }},={{ $json.resumen }},={{ $json.hash_contenido }}"
+        }
+      },
+      "id": "c1000001-0004-4000-8000-000000000004",
+      "name": "PostgreSQL - Guardar nuevas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        780,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Cron - Diario 06:00": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Pagina oficial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Pagina oficial": {
+      "main": [
+        [
+          {
+            "node": "Code - Extraer noticias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Extraer noticias": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL - Guardar nuevas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "db7076d0e9004376d67e2b84"
+}

@@ -1,0 +1,559 @@
+{
+  "name": "CCD - Chatbot flujo principal (completo - plantilla)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "b1000001-0001-4000-8000-000000000001",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ccd-web-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b1000001-0002-4000-8000-000000000002",
+      "name": "Webhook - Web Chat",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "ccd-web-chat"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "b1000001-0003-4000-8000-000000000003",
+      "name": "Merge - Entradas",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const preguntaOriginal = $json.message?.text || $json.body?.pregunta || $json.pregunta || \"\";\nconst normalizada = preguntaOriginal.toLowerCase().normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").trim();\nreturn [{ json: {\n  pregunta_original: preguntaOriginal,\n  pregunta_normalizada: normalizada,\n  chat_id: $json.message?.chat?.id,\n  session_id: $json.body?.session_id,\n  codigo_estudiante: $json.body?.codigo_estudiante,\n  canal: $json.message ? \"telegram\" : \"web\"\n}}];"
+      },
+      "id": "b1000001-0004-4000-8000-000000000004",
+      "name": "Code - Normalizar pregunta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $json.pregunta_normalizada;\nlet intencion = \"desconocido\";\nlet respuesta_directa = null;\nif (p.includes(\"que es el ccd\") || p.includes(\"centro de competencias digitales\")) {\n  intencion = \"faq_directa\";\n  respuesta_directa = \"El Centro de Competencias Digitales, CCD, es una iniciativa institucional orientada al fortalecimiento de habilidades digitales en la comunidad universitaria, mediante cursos sobre cultura digital, analítica, contenido digital y tecnologías transformativas.\";\n} else if (p.includes(\"ruta de competencias digitales\") || p.includes(\"competencias digitales\")) {\n  intencion = \"faq_directa\";\n  respuesta_directa = \"La Ruta de Competencias Digitales está organizada en tres pilares: Competencias Digitales Básicas, Analítica y Contenido Digital, y Tecnologías Transformativas.\";\n} else if (p.includes(\"cuantos cursos\") || p.includes(\"cuantos debo tomar\") || p.includes(\"que cursos debo tomar\")) {\n  intencion = \"faq_directa\";\n  respuesta_directa = \"La ruta contempla un curso obligatorio de competencias digitales básicas y cursos complementarios en Analítica y Contenido Digital y Tecnologías Transformativas.\";\n} else if (p.includes(\"insignia\") || p.includes(\"certificacion\") || p.includes(\"certificado\")) {\n  intencion = \"rag_documentos\";\n} else if (p.includes(\"cuando\") || p.includes(\"fecha\") || p.includes(\"inscripcion\") || p.includes(\"prueba diagnostica\") || p.includes(\"inicio de cursos\")) {\n  intencion = \"calendario\";\n} else if (p.includes(\"he tomado\") || p.includes(\"mis cursos\") || p.includes(\"historial\") || p.includes(\"cursos realizados\")) {\n  intencion = \"cursos_estudiante\";\n} else if (p.includes(\"noticias\") || p.includes(\"convocatorias\") || p.includes(\"nuevos cursos\") || p.includes(\"novedades\")) {\n  intencion = \"noticias\";\n} else if (p.includes(\"analitica\") || p.includes(\"contenido digital\") || p.includes(\"tecnologias transformativas\") || p.includes(\"ia generativa\")) {\n  intencion = \"oferta_cursos\";\n} else if (p.includes(\"hola\") || p.includes(\"buenas\") || p.includes(\"buenos dias\") || p.includes(\"buenas tardes\")) {\n  intencion = \"saludo\";\n  respuesta_directa = \"Hola, soy el asistente del Centro de Competencias Digitales. Puedes preguntarme sobre cursos, calendario, ruta de competencias digitales, noticias o tu historial académico.\";\n}\nreturn [{ json: { ...$json, intencion, respuesta_directa } }];"
+      },
+      "id": "b1000001-0005-4000-8000-000000000005",
+      "name": "Code - Detectar FAQ e intencion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-respuesta-directa",
+              "leftValue": "={{ $json.respuesta_directa }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b1000001-0006-4000-8000-000000000006",
+      "name": "IF - Respuesta directa",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intencion }}",
+                    "rightValue": "calendario",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "calendario"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intencion }}",
+                    "rightValue": "cursos_estudiante",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "cursos_estudiante"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intencion }}",
+                    "rightValue": "oferta_cursos",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "oferta_cursos"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intencion }}",
+                    "rightValue": "noticias",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "noticias"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intencion }}",
+                    "rightValue": "rag_documentos",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "rag_documentos"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "desconocido"
+        }
+      },
+      "id": "b1000001-0007-4000-8000-000000000007",
+      "name": "Switch - Intencion",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.respuesta_directa }}"
+      },
+      "id": "b1000001-0008-4000-8000-000000000008",
+      "name": "Responder - Directa",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT evento, fecha_inicio, descripcion FROM calendario_ccd WHERE activo = TRUE ORDER BY fecha_inicio;"
+      },
+      "id": "b1000001-0009-4000-8000-000000000009",
+      "name": "PostgreSQL - Calendario",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1480,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.codigo_estudiante }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "b1000001-0010-4000-8000-000000000010",
+      "name": "IF - Tiene codigo estudiante",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.nombre, c.categoria, m.estado\nFROM matriculas m\nJOIN estudiantes_sinteticos e ON e.id = m.estudiante_id\nJOIN cursos_ccd c ON c.id = m.curso_id\nWHERE e.codigo = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.codigo_estudiante }}"
+        }
+      },
+      "id": "b1000001-0011-4000-8000-000000000011",
+      "name": "PostgreSQL - Cursos estudiante",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1720,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code - Normalizar pregunta').item.json.chat_id }}",
+        "text": "Para consultar tus cursos realizados necesito tu código de estudiante."
+      },
+      "id": "b1000001-0012-4000-8000-000000000012",
+      "name": "Responder - Pedir codigo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1720,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT categoria, nombre, modalidad FROM cursos_ccd WHERE activo = TRUE ORDER BY categoria, nombre;"
+      },
+      "id": "b1000001-0013-4000-8000-000000000013",
+      "name": "PostgreSQL - Oferta cursos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1480,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT titulo, fecha_publicacion, enlace, resumen FROM noticias_ccd WHERE activo = TRUE AND disponible_chatbot = TRUE ORDER BY fecha_publicacion DESC LIMIT 5;"
+      },
+      "id": "b1000001-0014-4000-8000-000000000014",
+      "name": "PostgreSQL - Noticias",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1480,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CCD_RAG_API_URL || 'http://ccd-rag-api:8000/api/rag/query' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"pregunta\": \"{{ $json.pregunta_original }}\", \"top_k\": 5 }",
+        "options": {}
+      },
+      "id": "b1000001-0015-4000-8000-000000000015",
+      "name": "HTTP - API RAG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1480,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "=Eres el asistente virtual del Centro de Competencias Digitales de la Universidad Autónoma de Bucaramanga.\n\nResponde la pregunta del estudiante usando únicamente el contexto proporcionado.\n\nPregunta del estudiante:\n{{ $('Code - Normalizar pregunta').item.json.pregunta_original }}\n\nContexto recuperado:\n{{ $json.contexto }}\n\nInstrucciones:\n- Responde claro, breve y de forma institucional.\n- No inventes fechas, cursos, requisitos ni certificaciones.\n- Si el contexto no contiene la respuesta, di:\n  \"No tengo información suficiente en los documentos disponibles para responder con seguridad.\"\n- Máximo 2 párrafos."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "b1000001-0016-4000-8000-000000000016",
+      "name": "OpenAI - Respuesta RAG",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1720,
+        680
+      ],
+      "notes": "Reemplazar por Azure OpenAI si aplica en UNAB"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code - Normalizar pregunta').item.json.chat_id }}",
+        "text": "No tengo suficiente información para responder eso. Puedes preguntarme sobre cursos, calendario, ruta CCD, noticias o historial académico."
+      },
+      "id": "b1000001-0017-4000-8000-000000000017",
+      "name": "Responder - Desconocido",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1480,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nlet texto = 'Calendario CCD:\\n';\nfor (const r of rows) {\n  texto += `- ${r.evento}: ${r.fecha_inicio || 'fecha por confirmar'}\\n`;\n}\nreturn [{ json: { mensaje_respuesta: texto.trim() } }];"
+      },
+      "id": "b1000001-0018-4000-8000-000000000018",
+      "name": "Code - Formatear calendario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge - Entradas",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Webhook - Web Chat": {
+      "main": [
+        [
+          {
+            "node": "Merge - Entradas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge - Entradas": {
+      "main": [
+        [
+          {
+            "node": "Code - Normalizar pregunta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Normalizar pregunta": {
+      "main": [
+        [
+          {
+            "node": "Code - Detectar FAQ e intencion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Detectar FAQ e intencion": {
+      "main": [
+        [
+          {
+            "node": "IF - Respuesta directa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Respuesta directa": {
+      "main": [
+        [
+          {
+            "node": "Responder - Directa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch - Intencion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Intencion": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL - Calendario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Tiene codigo estudiante",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PostgreSQL - Oferta cursos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PostgreSQL - Noticias",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - API RAG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder - Desconocido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL - Calendario": {
+      "main": [
+        [
+          {
+            "node": "Code - Formatear calendario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Tiene codigo estudiante": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL - Cursos estudiante",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder - Pedir codigo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - API RAG": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Respuesta RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "42c2c520949c7b8756689625"
+}
