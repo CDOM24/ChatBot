@@ -262,8 +262,8 @@ La tabla `oferta` permite consultar cursos disponibles por pilar, modalidad, cup
 | Base de datos PostgreSQL con estudiantes y cursos | Implementado |
 | Consulta de cursos realizados por estudiante | Implementado |
 | Consulta de noticias y novedades del CCD | Implementado |
-| Scraper de noticias oficiales | Implementado |
-| Documentos institucionales en base de datos | Implementado |
+| Scraper de noticias oficiales | Estructura preparada |
+| Documentos institucionales en base de datos | Estructura preparada |
 
 ---
 
